@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Attendance Helper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Office.js (only used when running inside Outlook add-in) -->
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+  <!-- CSV + Excel parsers -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#fff5f8;
+      --primary:#e06287;
+      --primary-d:#c65074;
+      --text:#333;
+      --muted:#666;
+      --card:#ffffff;
+      --border:#f0d7df;
+    }
+
+    * { box-sizing: border-box; min-width: 0; }
+
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family:'Segoe UI', Arial, sans-serif;
+      color:var(--text);
+      background:linear-gradient(180deg, var(--bg), #ffffff);
+    }
+
+    .wrap{
+      width:100%;
+      max-width: 760px;
+      margin: 0 auto;
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 6px 30px rgba(0,0,0,0.06);
+    }
+
+    header{ display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+    .logo{
+      width:34px; height:34px;
+      border-radius:10px;
+      border:2px solid var(--primary);
+      display:grid; place-items:center;
+      color:var(--primary); font-weight:700;
+      flex: 0 0 auto;
+    }
+    h1{ font-size:18px; margin:0; color:var(--primary); line-height:1.2; }
+    .sub{ color:var(--muted); font-size:13px; margin-top:4px; }
+
+    .card{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      background:#fff;
+      margin-top:12px;
+      overflow-x: auto;
+    }
+
+    label{ font-size:13px; color:#444; display:block; margin-bottom:6px; }
+    input[type="file"], select, input[type="text"]{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:#fff;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+
+    .btn{
+      background:var(--primary);
+      color:#fff;
+      border:none;
+      border-radius:10px;
+      padding:10px 14px;
+      cursor:pointer;
+      font-weight:600;
+      transition:.2s;
+      white-space: nowrap;
+    }
+    .btn:hover{ background:var(--primary-d); }
+    .btn.secondary{ background:#fff; color:var(--primary); border:1px solid var(--primary); }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid var(--border); color:#555; background:#fff;
+    }
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+
+    .grid{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+      margin-top:8px;
+      table-layout: fixed;
+      word-break: break-word;
+    }
+    .grid th, .grid td{ border:1px solid var(--border); padding:8px; }
+    .grid th{ background:#fff8fb; text-align:left; }
+
+    .right{ display:flex; gap:8px; justify-content:flex-end; flex-wrap: wrap; }
+
+    .hint{ font-size:12px; color:#777; margin-top:6px; }
+    footer{ margin:10px 0 4px; text-align:center; color:#999; font-size:12px; }
+
+    @media (max-width: 640px){
+      .row{ grid-template-columns: 1fr; }
+      .wrap{ padding:14px; }
+      h1{ font-size:17px; }
+    }
+    @media (max-width: 420px){
+      .wrap{ border-radius:12px; padding:12px; }
+      .logo{ width:30px; height:30px; }
+      h1{ font-size:16px; }
+      .sub{ font-size:12px; }
+      .right{ justify-content:stretch; gap:6px; }
+      .right .btn, .right .btn.secondary{ width:100%; }
+    }
+    @media (max-width: 340px){
+      .grid th, .grid td{ padding:6px; font-size:12px; }
+      input[type="file"], select, input[type="text"]{ padding:8px 10px; }
+      .btn{ padding:9px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div style="padding:10px">
+    <main class="wrap">
+      <header>
+        <div class="logo">RS</div>
+        <div>
+          <h1>RemSync</h1>
+          <div class="sub">Upload → map columns → filter by response → copy or add to Outlook.</div>
+        </div>
+      </header>
+
+      <!-- 1) Upload -->
+      <section class="card">
+        <label>1) Upload CSV or Excel (.csv, .xlsx)</label>
+        <input id="file" type="file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" />
+        <div class="hint">Tip: Export your list from Sheets/Excel as CSV if you’re unsure.</div>
+      </section>
+
+      <!-- 2) Map columns (email-only for emailCol) -->
+      <section class="card">
+        <div class="row">
+          <div>
+            <label>2) Select email column</label>
+            <select id="emailCol" disabled></select>
+            <div id="emailColHint" class="hint" style="display:none;color:#b33;">No email-like column found. Check your file headers.</div>
+          </div>
+          <div>
+            <label>3) Select “target event” column (optional)</label>
+            <select id="eventCol" disabled></select>
+          </div>
+        </div>
+        <div style="margin-top:12px" class="row">
+          <div>
+            <label>Filter to one event name (optional)</label>
+            <input id="eventNameFilter" placeholder="e.g., All Hands – Nov 2025" />
+          </div>
+          <div>
+            <label>4) Filter by Response</label>
+            <select id="responseFilter">
+              <option value="ALL">All</option>
+              <option>Accepted</option>
+              <option>Declined</option>
+              <option>Tentative</option>
+              <option>Unknown</option>
+              <option>None</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint">Response column default is <b>Response</b>. If your header is different, set it below.</div>
+        <div style="margin-top:8px" class="row">
+          <div>
+            <label>Response column name in your file</label>
+            <input id="responseColName" placeholder="Default: Response (leave blank if it is literally 'Response')" />
+          </div>
+          <div style="display:flex; align-items:flex-end; gap:8px; justify-content:flex-end">
+            <button class="btn" id="previewBtn">Preview</button>
+            <button class="btn secondary" id="clearBtn">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5/6) Preview + Actions -->
+      <section class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div class="chips">
+            <span class="pill">Rows: <strong id="rowsCount">0</strong></span>
+            <span class="pill">Emails: <strong id="emailsCount">0</strong></span>
+            <span class="pill">Filter: <strong id="filterLabel">All</strong></span>
+          </div>
+          <div class="right">
+            <button class="btn secondary" id="copyBtn">📋 Copy emails</button>
+            <button class="btn" id="addToOutlookBtn">➕ Add to Outlook event</button>
+          </div>
+        </div>
+        <table class="grid" id="previewTable" style="display:none; min-width:520px;">
+          <thead><tr><th>#</th><th>Email</th><th>Event</th><th>Response</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="hint">If “Add to Outlook” isn’t available, it will still copy — paste into recipients.</div>
+      </section>
+
+      <footer>© 2025 SharkByte Project • UI ✨</footer>
+    </main>
+  </div>
+
+  <script>
+    // ------------------------ EMAIL HELPERS ------------------------
+    // Strict-ish email finder (supports multiple emails in one cell)
+    const EMAIL_REGEX_GLOBAL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig;
+    const EMAIL_REGEX_STRICT = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
+    function extractEmailsFromCell(value){
+      if (typeof value !== 'string') value = String(value || '');
+      const matches = value.match(EMAIL_REGEX_GLOBAL) || [];
+      return matches.map(s => s.trim());
+    }
+    function looksLikeEmail(value){
+      if (typeof value !== 'string') value = String(value || '');
+      return EMAIL_REGEX_STRICT.test(value.trim());
+    }
+
+    // ------------------------ STATE ------------------------
+    let rawRows = [];
+    let headers = [];
+
+    const els = {
+      file: document.getElementById('file'),
+      emailCol: document.getElementById('emailCol'),
+      emailColHint: document.getElementById('emailColHint'),
+      eventCol: document.getElementById('eventCol'),
+      respFilter: document.getElementById('responseFilter'),
+      respColName: document.getElementById('responseColName'),
+      eventNameFilter: document.getElementById('eventNameFilter'),
+      rowsCount: document.getElementById('rowsCount'),
+      emailsCount: document.getElementById('emailsCount'),
+      filterLabel: document.getElementById('filterLabel'),
+      previewBtn: document.getElementById('previewBtn'),
+      clearBtn: document.getElementById('clearBtn'),
+      copyBtn: document.getElementById('copyBtn'),
+      addBtn: document.getElementById('addToOutlookBtn'),
+      table: document.getElementById('previewTable'),
+      tbody: document.querySelector('#previewTable tbody'),
+    };
+
+    // ------------------------ LOAD FILE ------------------------
+    els.file.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          await parseCSV(file);
+        } else {
+          await parseXLSX(file);
+        }
+        hydrateColumnDropdowns();
+        toast('File loaded.');
+      } catch (err) {
+        alert('Could not read file: ' + err);
+      }
+    });
+
+    function parseCSV(file){
+      return new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (res) => {
+            rawRows = res.data || [];
+            headers = res.meta?.fields || [];
+            resolve();
+          },
+          error: reject
+        });
+      });
+    }
+
+    async function parseXLSX(file){
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      headers = rawRows.length ? Object.keys(rawRows[0]) : [];
+    }
+
+    // ------------------------ COLUMN PICKERS ------------------------
+    function hydrateColumnDropdowns(){
+      // Find headers that look like they contain emails based on sample of data
+      const candidates = findEmailCandidateHeaders(rawRows, headers);
+
+      els.emailCol.innerHTML = '';
+      if (candidates.length){
+        fillSelect(els.emailCol, candidates);
+        els.emailCol.disabled = false;
+        els.emailColHint.style.display = 'none';
+      } else {
+        // no email-like columns, show a warning and keep disabled
+        const opt = document.createElement('option');
+        opt.textContent = '(no email-like column found)';
+        opt.value = '';
+        els.emailCol.appendChild(opt);
+        els.emailCol.disabled = true;
+        els.emailColHint.style.display = 'block';
+      }
+
+      fillSelect(els.eventCol, ['(none)', ...headers]);
+      els.eventCol.disabled = false;
+    }
+
+    function findEmailCandidateHeaders(rows, hdrs){
+      const SAMPLE = Math.min(50, rows.length || 0);
+      const threshold = 0.6; // at least 60% of non-empty sample values contain an email
+
+      const out = [];
+      for (const h of hdrs){
+        let total = 0, hits = 0;
+        for (let i=0; i<SAMPLE; i++){
+          const v = rows[i]?.[h];
+          if (v === undefined || v === null || String(v).trim() === '') continue;
+          total++;
+          const found = extractEmailsFromCell(v);
+          if (found.length) hits++;
+        }
+        if (total > 0 && (hits/total) >= threshold) out.push(h);
+      }
+      // Also add common header names if present (heuristic)
+      const common = ['email','emails','email address','e-mail','primary email'];
+      for (const h of hdrs){
+        if (common.includes(String(h).toLowerCase()) && !out.includes(h)) out.push(h);
+      }
+      return out;
+    }
+
+    function fillSelect(sel, items){
+      sel.innerHTML = '';
+      for (const h of items){
+        const opt = document.createElement('option');
+        opt.textContent = h;
+        opt.value = h;
+        sel.appendChild(opt);
+      }
+    }
+
+    // Guard: if user somehow selects a non-email header (e.g., after editing), block preview
+    els.emailCol.addEventListener('change', () => {
+      const key = els.emailCol.value;
+      if (!key) return;
+      // sample validate
+      const SAMPLE = Math.min(30, rawRows.length || 0);
+      let anyEmail = false;
+      for (let i=0; i<SAMPLE; i++){
+        const v = rawRows[i]?.[key];
+        if (extractEmailsFromCell(v).length){ anyEmail = true; break; }
+      }
+      if (!anyEmail){
+        alert('That column doesn’t contain emails. Pick a different one.');
+        els.emailCol.value = '';
+      }
+    });
+
+    // ------------------------ FILTER + PREVIEW ------------------------
+    els.previewBtn.addEventListener('click', renderPreview);
+    els.clearBtn.addEventListener('click', () => location.reload());
+
+    function renderPreview(){
+      if (!rawRows.length){ alert('Upload a file first.'); return; }
+      const emailKey = els.emailCol.value;
+      if (!emailKey){ alert('Pick the email column (only email-like columns are shown).'); return; }
+
+      const respKey = (els.respColName.value || 'Response').trim();
+      const eventKey = els.eventCol.value === '(none)' ? null : els.eventCol.value;
+      const eventName = els.eventNameFilter.value.trim();
+      const filterVal = els.respFilter.value;
+
+      // filter rows
+      const filtered = rawRows.filter(row => {
+        const emailCell = row[emailKey];
+        const hasEmail = extractEmailsFromCell(emailCell).length > 0;
+        if (!hasEmail) return false;
+
+        if (eventKey && eventName){
+          const ev = String(row[eventKey] || '').trim();
+          if (!ev || ev.toLowerCase() !== eventName.toLowerCase()) return false;
+        }
+
+        if (filterVal !== 'ALL'){
+          const resp = String(row[respKey] || '').trim();
+          if (!equalsResponse(resp, filterVal)) return false;
+        }
+        return true;
+      });
+
+      // collect emails: extract all valid emails from the email column, flatten, dedupe
+      const allEmails = filtered.flatMap(r => extractEmailsFromCell(r[emailKey]));
+      const list = Array.from(new Set(allEmails.map(e => e.toLowerCase())));
+
+      // table
+      els.tbody.innerHTML = '';
+      filtered.slice(0, 150).forEach((r, i) => {
+        const evName = eventKey ? (r[eventKey] || '') : '';
+        const resp = (r[(els.respColName.value || 'Response').trim()] || '');
+        const emailsInCell = extractEmailsFromCell(r[emailKey]).join('; ');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i+1}</td><td>${emailsInCell}</td><td>${evName}</td><td>${resp}</td>`;
+        els.tbody.appendChild(tr);
+      });
+      els.table.style.display = filtered.length ? 'table' : 'none';
+
+      els.rowsCount.textContent = String(filtered.length);
+      els.emailsCount.textContent = String(list.length);
+      els.filterLabel.textContent = filterVal;
+
+      window.__emails = list;
+    }
+
+    function equalsResponse(value, filter){
+      const v = String(value || '').toLowerCase();
+      const f = String(filter).toLowerCase();
+      const map = {
+        accepted:['accepted','yes','y','attending','accepted ✔','accepted✅'],
+        declined:['declined','no','n','not attending','declined ❌','declined✖'],
+        tentative:['tentative','maybe','unsure','tentative 🤔'],
+        unknown:['unknown','', 'pending','no response','n/a'],
+        none:['none','-','—']
+      };
+      if (f === 'all') return true;
+      for (const [k, arr] of Object.entries(map)){
+        if (k === f && arr.some(a => v === a)) return true;
+      }
+      return v === f;
+    }
+
+    // ------------------------ ACTIONS ------------------------
+    els.copyBtn.addEventListener('click', async () => {
+      const list = window.__emails || [];
+      if (!list.length){ alert('Nothing to copy. Click Preview first.'); return; }
+      const joined = list.join('; ');
+      try {
+        await navigator.clipboard.writeText(joined);
+        toast('Emails copied to clipboard.');
+      } catch(e){
+        prompt('Copy these emails:', joined);
+      }
+    });
+
+    els.addBtn.addEventListener('click', async () => {
+      const list = window.__emails || [];
+      if (!list.length){ alert('Nothing to add. Click Preview first.'); return; }
+
+      try {
+        if (window.Office && Office.context && Office.context.mailbox && Office.context.mailbox.item) {
+          const item = Office.context.mailbox.item;
+          if (item.requiredAttendees && item.requiredAttendees.addAsync) {
+            const entries = list.map(e => ({ emailAddress: e.trim() }));
+            item.requiredAttendees.addAsync(entries, (asyncResult) => {
+              if (asyncResult.status === Office.AsyncResultStatus.Succeeded) {
+                toast('Added to Required attendees.');
+              } else {
+                console.warn(asyncResult.error);
+                fallbackCopy(list);
+              }
+            });
+          } else {
+            fallbackCopy(list);
+          }
+        } else {
+          fallbackCopy(list);
+        }
+      } catch(err){
+        console.warn(err);
+        fallbackCopy(list);
+      }
+    });
+
+    function fallbackCopy(list){
+      const joined = list.join('; ');
+      navigator.clipboard.writeText(joined).then(
+        ()=> toast('Copied. Paste into the event recipients.'),
+        ()=> prompt('Copy these emails:', joined)
+      );
+    }
+
+    // ------------------------ UI HELPERS ------------------------
+    function toast(msg){
+      const d = document.createElement('div');
+      d.textContent = msg;
+      d.style.position='fixed'; d.style.bottom='18px'; d.style.right='18px';
+      d.style.background='var(--primary)'; d.style.color='#fff';
+      d.style.borderRadius='10px'; d.style.padding='10px 14px'; d.style.boxShadow='0 4px 16px rgba(0,0,0,.12)';
+      d.style.zIndex='999999';
+      document.body.appendChild(d);
+      setTimeout(()=>d.remove(), 1800);
+    }
+  </script>
+</body>
+</html>
