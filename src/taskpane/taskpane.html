@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Attendance Helper</title>
+  <title>RemSync</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Office.js (only used when running inside Outlook add-in) -->
@@ -223,6 +223,25 @@
   </div>
 
   <script>
+    // ------------------------ OFFICE INITIALIZATION ------------------------
+    Office.initialize = function(reason){
+      // This function must be defined for the taskpane to load
+      console.log('Office.initialize', reason);
+      
+      // Check if we're in an appointment/calendar item
+      if (Office.context.Appointment && Office.context.Appointment.item) {
+        const item = Office.context.Appointment.item;
+        console.log('Item type:', item.itemType);
+        
+        // Enable add button only for appointments
+        if (item.itemType === Office.MailboxEnums.ItemType.Appointment) {
+          document.getElementById('addToOutlookBtn').style.display = '';
+        } else {
+          document.getElementById('addToOutlookBtn').style.display = 'none';
+        }
+      }
+    };
+
     // ------------------------ EMAIL HELPERS ------------------------
     // Strict-ish email finder (supports multiple emails in one cell)
     const EMAIL_REGEX_GLOBAL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig;
@@ -453,12 +472,40 @@
       const list = window.__emails || [];
       if (!list.length){ alert('Nothing to copy. Click Preview first.'); return; }
       const joined = list.join('; ');
+
+      // Try modern clipboard API first (must be called from user gesture)
       try {
-        await navigator.clipboard.writeText(joined);
-        toast('Emails copied to clipboard.');
-      } catch(e){
-        prompt('Copy these emails:', joined);
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+          await navigator.clipboard.writeText(joined);
+          toast('Emails copied to clipboard.');
+          return;
+        }
+      } catch (err) {
+        console.warn('navigator.clipboard.writeText failed', err);
       }
+
+      // Fallback: use execCommand on a temporary textarea (works in many WebViews)
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = joined;
+        // Avoid scrolling to bottom
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+          toast('Emails copied to clipboard.');
+          return;
+        }
+      } catch (err) {
+        console.warn('execCommand copy failed', err);
+      }
+
+      // Final fallback: let the user copy manually
+      prompt('Copy these emails (Ctrl+C):', joined);
     });
 
     els.addBtn.addEventListener('click', async () => {
@@ -491,11 +538,37 @@
     });
 
     function fallbackCopy(list){
-      const joined = list.join('; ');
-      navigator.clipboard.writeText(joined).then(
-        ()=> toast('Copied. Paste into the event recipients.'),
-        ()=> prompt('Copy these emails:', joined)
-      );
+      const joined = Array.isArray(list) ? list.join('; ') : String(list || '');
+      // Try clipboard API
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+        navigator.clipboard.writeText(joined).then(
+          () => toast('Copied. Paste into the event recipients.'),
+          () => prompt('Copy these emails (Ctrl+C):', joined)
+        );
+        return;
+      }
+
+      // ExecCommand fallback
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = joined;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+          toast('Copied. Paste into the event recipients.');
+          return;
+        }
+      } catch (err) {
+        console.warn('fallback execCommand failed', err);
+      }
+
+      // Final fallback
+      prompt('Copy these emails (Ctrl+C):', joined);
     }
 
     // ------------------------ UI HELPERS ------------------------

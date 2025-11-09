@@ -32,19 +32,7 @@
         "Install"
       ]
     },
-    {
-      "label": "Debug: Excel Desktop",
-      "type": "npm",
-      "script": "start:desktop:excel",
-      "presentation": {
-        "clear": true,
-        "panel": "dedicated"
-      },
-      "problemMatcher": [],
-      "dependsOn": [
-        "Install"
-      ]
-    },
+
     {
       "label": "Debug: Outlook Desktop",
       "type": "npm",

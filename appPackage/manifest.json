@@ -8,11 +8,11 @@
         "full": "RemSync"
     },
     "description": {
-        "short": "A template to get started.",
-        "full": "This is the template to get started."
+        "short": "Awesome app.",
+        "full": "Our Awesome app."
     },
     "developer": {
-        "name": "Contoso",
+        "name": "RemSync",
         "websiteUrl": "https://thegirlsare.cooking",
         "privacyUrl": "https://thegirlsare.cooking",
         "termsOfUseUrl": "https://thegirlsare.cooking"
@@ -36,6 +36,10 @@
                 {
                     "name": "Document.ReadWrite.User",
                     "type": "Delegated"
+                },
+                {
+                    "name": "Calendars.ReadWrite",
+                    "type": "Delegated"
                 }
             ]
         }
@@ -48,9 +52,7 @@
             "requirements": {
                 "scopes": [
                     "mail",
-                    "workbook",
-                    "document",
-                    "presentation"
+                    "calendar"
                 ]
             },
             "runtimes": [
@@ -63,34 +65,22 @@
                             }
                         ]
                     },
-                    "id": "TaskPaneRuntimeMail",
-                    "type": "general",
-                    "code": {
-                        "page": "https://localhost:3000/taskpane.html"
-                    },
-                    "lifetime": "short",
-                    "actions": [
-                        {
-                            "id": "TaskPaneRuntimeShowMail",
-                            "type": "openPage",
-                            "pinnable": false,
-                            "view": "dashboard"
-                        }
-                    ]
-                },
-                {
                     "id": "TaskPaneRuntime",
                     "type": "general",
                     "code": {
-                        "page": "https://localhost:3000/taskpane.html"
+                        "page": "https://localhost:3000/taskpane.html?view=calendar"
                     },
-                    "lifetime": "short",
+                    "lifetime": "long",
+                    "defaultWindowSize": {
+                        "width": 800,
+                        "height": 600
+                    },
                     "actions": [
                         {
-                            "id": "TaskPaneRuntimeShow",
-                            "type": "openPage",
-                            "pinnable": false,
-                            "view": "dashboard"
+                            "id": "ShowTaskpane",
+                            "type": "executeFunction",
+                            "pinnable": true,
+                            "view": "default"
                         }
                     ]
                 },
@@ -129,6 +119,10 @@
                         ]
                     },
                     "contexts": [
+                        "mailCompose",
+                        "meetingDetailsOrganizer",
+                        "meetingDetailsAttendee",
+                        "onlineMeetingDetailsOrganizer",
                         "mailRead"
                     ],
                     "tabs": [
@@ -137,7 +131,7 @@
                             "groups": [
                                 {
                                     "id": "msgReadGroup",
-                                    "label": "Contoso Add-in",
+                                    "label": "RemSync Add-in",
                                     "icons": [
                                         {
                                             "size": 16,
@@ -175,7 +169,7 @@
                                                 "title": "Show Taskpane",
                                                 "description": "Opens a pane displaying all available properties."
                                             },
-                                            "actionId": "TaskPaneRuntimeShowMail"
+                                            "actionId": "ShowTaskpane"
                                         },
                                         {
                                             "id": "ActionButton",
@@ -209,7 +203,10 @@
                 },
                 {
                     "contexts": [
-                        "default"
+                        "default",
+                        "meetingDetailsOrganizer",
+                        "meetingDetailsAttendee",
+                        "onlineMeetingDetailsOrganizer"
                     ],
                     "tabs": [
                         {
@@ -217,7 +214,7 @@
                             "groups": [
                                 {
                                     "id": "msgReadGroup",
-                                    "label": "Contoso Add-in",
+                                    "label": "RemSync Add-in",
                                     "icons": [
                                         {
                                             "size": 16,
@@ -255,7 +252,7 @@
                                                 "title": "Show Taskpane",
                                                 "description": "Opens a pane displaying all available properties."
                                             },
-                                            "actionId": "TaskPaneRuntimeShow"
+                                                                        "actionId": "ShowTaskpane"
                                         },
                                         {
                                             "id": "ActionButton",
