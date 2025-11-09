@@ -13,9 +13,32 @@
 
 <body>
   <script>
-  Office.onReady(()=>{});
-  function ShowTaskPane(event){
-    Office.addin.showAsTaskpane().then(()=>event.completed());
+  Office.onReady(() => {
+    console.log('Commands ready');
+  });
+
+  function ShowTaskPane(event) {
+    try {
+      // Force taskpane to show in current window context
+      Office.context.ui.displayDialogAsync('https://localhost:3000/taskpane.html', 
+        { height: 60, width: 30, displayInIframe: true },
+        function (asyncResult) {
+          if (asyncResult.status === "failed") {
+            // Fallback to default method if dialog fails
+            Office.addin.showAsTaskpane()
+              .then(() => event.completed())
+              .catch(() => event.completed());
+          } else {
+            event.completed();
+          }
+        }
+      );
+    } catch (error) {
+      // Final fallback
+      Office.addin.showAsTaskpane()
+        .then(() => event.completed())
+        .catch(() => event.completed());
+    }
   }
 </script>
 

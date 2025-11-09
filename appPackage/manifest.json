@@ -65,10 +65,34 @@
                             }
                         ]
                     },
+                    "id": "MeetingModifyRuntime",
+                    "type": "general",
+                    "code": {
+                        "page": "https://localhost:3000/taskpane.html"
+                    },
+                    "lifetime": "short",
+                    "actions": [
+                        {
+                            "id": "ShowTaskpaneModify",
+                            "type": "openPage",
+                            "pinnable": true,
+                            "view": "default"
+                        }
+                    ]
+                },
+                {
+                    "requirements": {
+                        "capabilities": [
+                            {
+                                "name": "Mailbox",
+                                "minVersion": "1.3"
+                            }
+                        ]
+                    },
                     "id": "TaskPaneRuntime",
                     "type": "general",
                     "code": {
-                        "page": "https://localhost:3000/taskpane.html?view=calendar"
+                        "page": "https://localhost:3000/taskpane.html"
                     },
                     "lifetime": "long",
                     "defaultWindowSize": {
@@ -80,7 +104,8 @@
                             "id": "ShowTaskpane",
                             "type": "executeFunction",
                             "pinnable": true,
-                            "view": "default"
+                            "view": "default",
+                            "enables": ["meetingModify", "meetingDetailsOrganizer", "meetingDetailsAttendee"]
                         }
                     ]
                 },
@@ -206,7 +231,8 @@
                         "default",
                         "meetingDetailsOrganizer",
                         "meetingDetailsAttendee",
-                        "onlineMeetingDetailsOrganizer"
+                        "onlineMeetingDetailsOrganizer",
+                        "meetingModify"
                     ],
                     "tabs": [
                         {
@@ -277,6 +303,68 @@
                                                 "description": "Perform an action when clicked."
                                             },
                                             "actionId": "action"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "requirements": {
+                        "capabilities": [
+                            {
+                                "name": "Mailbox",
+                                "minVersion": "1.3"
+                            }
+                        ]
+                    },
+                    "contexts": ["meetingModify"],
+                    "tabs": [
+                        {
+                            "builtInTabId": "TabDefault",
+                            "groups": [
+                                {
+                                    "id": "meetingModifyGroup",
+                                    "label": "RemSync Add-in",
+                                    "icons": [
+                                        {
+                                            "size": 16,
+                                            "url": "https://localhost:3000/assets/icon-16.png"
+                                        },
+                                        {
+                                            "size": 32,
+                                            "url": "https://localhost:3000/assets/icon-32.png"
+                                        },
+                                        {
+                                            "size": 80,
+                                            "url": "https://localhost:3000/assets/icon-80.png"
+                                        }
+                                    ],
+                                    "controls": [
+                                        {
+                                            "id": "meetingModifyOpenPaneButton",
+                                            "type": "button",
+                                            "label": "Show Taskpane",
+                                            "icons": [
+                                                {
+                                                    "size": 16,
+                                                    "url": "https://localhost:3000/assets/icon-16.png"
+                                                },
+                                                {
+                                                    "size": 32,
+                                                    "url": "https://localhost:3000/assets/icon-32.png"
+                                                },
+                                                {
+                                                    "size": 80,
+                                                    "url": "https://localhost:3000/assets/icon-80.png"
+                                                }
+                                            ],
+                                            "supertip": {
+                                                "title": "Show Taskpane",
+                                                "description": "Opens a pane displaying all available properties."
+                                            },
+                                            "actionId": "ShowTaskpaneModify"
                                         }
                                     ]
                                 }

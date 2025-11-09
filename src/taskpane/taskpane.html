@@ -208,7 +208,7 @@
           </div>
           <div class="right">
             <button class="btn secondary" id="copyBtn">📋 Copy emails</button>
-            <button class="btn" id="addToOutlookBtn">➕ Add to Outlook event</button>
+            <!--<button class="btn" id="addToOutlookBtn">➕ Add to Outlook event</button>-->
           </div>
         </div>
         <table class="grid" id="previewTable" style="display:none; min-width:520px;">
@@ -275,7 +275,7 @@
       previewBtn: document.getElementById('previewBtn'),
       clearBtn: document.getElementById('clearBtn'),
       copyBtn: document.getElementById('copyBtn'),
-      addBtn: document.getElementById('addToOutlookBtn'),
+      // addBtn: document.getElementById('addToOutlookBtn'),
       table: document.getElementById('previewTable'),
       tbody: document.querySelector('#previewTable tbody'),
     };
@@ -508,7 +508,9 @@
       prompt('Copy these emails (Ctrl+C):', joined);
     });
 
-    els.addBtn.addEventListener('click', async () => {
+    // --------------This currently doesnt work and i have no time to fix it ------------------------
+   
+    /*els.addBtn.addEventListener('click', async () => {
       const list = window.__emails || [];
       if (!list.length){ alert('Nothing to add. Click Preview first.'); return; }
 
@@ -552,6 +554,7 @@
       try {
         const ta = document.createElement('textarea');
         ta.value = joined;
+        // Avoid scrolling to bottom
         ta.style.position = 'fixed';
         ta.style.left = '-9999px';
         document.body.appendChild(ta);
@@ -560,16 +563,16 @@
         const ok = document.execCommand('copy');
         document.body.removeChild(ta);
         if (ok) {
-          toast('Copied. Paste into the event recipients.');
+          toast('Emails copied to clipboard.');
           return;
         }
       } catch (err) {
-        console.warn('fallback execCommand failed', err);
+        console.warn('execCommand copy failed', err);
       }
 
-      // Final fallback
+      // Final fallback: let the user copy manually
       prompt('Copy these emails (Ctrl+C):', joined);
-    }
+    }*/
 
     // ------------------------ UI HELPERS ------------------------
     function toast(msg){
